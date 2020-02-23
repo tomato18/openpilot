@@ -3,6 +3,7 @@ from selfdrive.car.hyundai.values import DBC, STEER_THRESHOLD, FEATURES
 from opendbc.can.parser import CANParser
 from selfdrive.config import Conversions as CV
 from common.kalman.simple_kalman import KF1D
+from common.realtime import DT_CTRL
 
 GearShifter = car.CarState.GearShifter
 
@@ -281,24 +282,12 @@ def get_camera_parser(CP):
     ]
   return CANParser(DBC[CP.carFingerprint]['pt'], signals, checks, 2)
 
-
 class CarState():
+
   def __init__(self, CP):
-
     self.CP = CP
-
     # initialize can parser
     self.car_fingerprint = CP.carFingerprint
-
-    # vEgo kalman filter
-    dt = 0.01
-    # Q = np.matrix([[10.0, 0.0], [0.0, 100.0]])
-    # R = 1e3
-    self.v_ego_kf = KF1D(x0=[[0.0], [0.0]],
-                         A=[[1.0, dt], [0.0, 1.0]],
-                         C=[1.0, 0.0],
-                         K=[[0.12287673], [0.29666309]])
-    self.v_ego = 0.0
     self.left_blinker_on = 0
     self.left_blinker_flash = 0
     self.left_blinker_cnt = 0
@@ -312,6 +301,20 @@ class CarState():
     self.sas_bus = CP.sasBus
     self.scc_bus = CP.sccBus
 
+    # Q = np.matrix([[10.0, 0.0], [0.0, 100.0]])
+    # R = 1e3
+    self.v_ego_kf = KF1D(x0=[[0.0], [0.0]],
+                         A=[[1.0, DT_CTRL], [0.0, 1.0]],
+                         C=[1.0, 0.0],
+                         K=[[0.12287673], [0.29666309]])
+
+  def update_speed_kf(self, v_ego_raw):
+    if abs(v_ego_raw - self.v_ego_kf.x[0][0]) > 2.0:  # Prevent large accelerations when car starts at non zero speed
+      self.v_ego_kf.x = [[v_ego_raw], [0.0]]
+
+    v_ego_x = self.v_ego_kf.update(v_ego_raw)
+    return float(v_ego_x[0]), float(v_ego_x[1])
+	
   def update(self, cp, cp2, cp_cam):
 
     cp_mdps = cp2 if self.mdps_bus else cp
@@ -337,28 +340,20 @@ class CarState():
                                       (cp.vl["LVR12"]['CF_Lvr_CruiseSet'] != 0)
     self.pcm_acc_status = int(self.acc_active)
 
-    # calc best v_ego estimate, by averaging two opposite corners
     self.v_wheel_fl = cp.vl["WHL_SPD11"]['WHL_SPD_FL'] * CV.KPH_TO_MS
     self.v_wheel_fr = cp.vl["WHL_SPD11"]['WHL_SPD_FR'] * CV.KPH_TO_MS
     self.v_wheel_rl = cp.vl["WHL_SPD11"]['WHL_SPD_RL'] * CV.KPH_TO_MS
     self.v_wheel_rr = cp.vl["WHL_SPD11"]['WHL_SPD_RR'] * CV.KPH_TO_MS
-    v_wheel = (self.v_wheel_fl + self.v_wheel_fr + self.v_wheel_rl + self.v_wheel_rr) / 4.
+    self.v_ego_raw = (self.v_wheel_fl + self.v_wheel_fr + self.v_wheel_rl + self.v_wheel_rr) / 4.
+    self.v_ego, self.a_ego = self.update_speed_kf(self.v_ego_raw)
 
-    self.low_speed_lockout = v_wheel < 1.0
+    self.low_speed_lockout = self.v_ego_raw < 1.0
 
-    # Kalman filter, even though Hyundai raw wheel speed is heaviliy filtered by default
-    if abs(v_wheel - self.v_ego) > 2.0:  # Prevent large accelerations when car starts at non zero speed
-      self.v_ego_kf.x = [[v_wheel], [0.0]]
-
-    self.v_ego_raw = v_wheel
-    v_ego_x = self.v_ego_kf.update(v_wheel)
-    self.v_ego = float(v_ego_x[0])
-    self.a_ego = float(v_ego_x[1])
     self.is_set_speed_in_mph = int(cp.vl["CLU11"]["CF_Clu_SPEED_UNIT"])
     speed_conv = CV.MPH_TO_MS if self.is_set_speed_in_mph else CV.KPH_TO_MS
     self.cruise_set_speed = cp_scc.vl["SCC11"]['VSetDis'] * speed_conv if not self.no_radar else \
                                          (cp.vl["LVR12"]["CF_Lvr_CruiseSet"] * speed_conv)
-    self.standstill = not v_wheel > 0.1
+    self.standstill = not self.v_ego_raw > 0.1
 
     self.angle_steers = cp_sas.vl["SAS11"]['SAS_Angle']
     self.angle_steers_rate = cp_sas.vl["SAS11"]['SAS_Speed']
