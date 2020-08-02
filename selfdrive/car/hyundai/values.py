@@ -148,4 +148,4 @@ DBC = {
   CAR.ELANTRA_GT_I30: dbc_dict('hyundai_kia_generic', None),
 }
 
-STEER_THRESHOLD = 150
+STEER_THRESHOLD = 200
