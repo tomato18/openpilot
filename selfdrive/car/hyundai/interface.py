@@ -196,7 +196,7 @@ class CarInterface(CarInterfaceBase):
     if ret.mdpsHarness or \
             (candidate in [CAR.KIA_OPTIMA_HEV, CAR.SONATA_HEV, CAR.IONIQ_HEV,
                           CAR.KIA_CADENZA_HEV, CAR.GRANDEUR_HEV, CAR.KIA_NIRO_HEV, CAR.KONA_HEV]):
-      ret.safetyModel = car.CarParams.SafetyModel.hyundaiCommunity
+      ret.safetyModel = car.CarParams.SafetyModel.hyundaiCommunityNonscc
 
     if ret.radarOffCan or (ret.sccBus == 2):
       ret.safetyModel = car.CarParams.SafetyModel.hyundaiCommunityNonscc
@@ -243,7 +243,7 @@ class CarInterface(CarInterfaceBase):
 
     events = self.create_common_events(ret)
 
-    self.CP.enableCruise = (not self.CP.openpilotLongitudinalControl) or self.CC.usestockscc
+    self.CP.enableCruise = False
     if self.CS.brakeHold and not self.CC.usestockscc:
       events.add(EventName.brakeHold)
     if self.CS.parkBrake and not self.CC.usestockscc:
