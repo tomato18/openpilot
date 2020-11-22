@@ -208,7 +208,7 @@ class Controls:
     if not self.sm['liveLocationKalman'].sensorsOK and not NOSENSOR:
       if self.sm.frame > 5 / DT_CTRL:  # Give locationd some time to receive all the inputs
         self.events.add(EventName.sensorDataInvalid)
-    if not self.sm['liveLocationKalman'].gpsOK and (self.distance_traveled > 1000):
+    if not self.sm['liveLocationKalman'].gpsOK and (self.distance_traveled > 1000000):
       # Not show in first 1 km to allow for driving out of garage. This event shows after 5 minutes
       if not (SIMULATION or NOSENSOR):  # TODO: send GPS in carla
         self.events.add(EventName.noGps)
