@@ -164,7 +164,7 @@ ThermalStatus = cereal.log.ThermalData.ThermalStatus
 # comment out anything you don't want to run
 managed_processes = {
   "thermald": "selfdrive.thermald.thermald",
-  "uploader": "selfdrive.loggerd.uploader",
+  #"uploader": "selfdrive.loggerd.uploader",
   "deleter": "selfdrive.loggerd.deleter",
   "controlsd": "selfdrive.controls.controlsd",
   "plannerd": "selfdrive.controls.plannerd",
@@ -186,7 +186,7 @@ managed_processes = {
   "sensord": ("selfdrive/sensord", ["./sensord"]),
   "clocksd": ("selfdrive/clocksd", ["./clocksd"]),
   "gpsd": ("selfdrive/sensord", ["./gpsd"]),
-  "updated": "selfdrive.updated",
+  #"updated": "selfdrive.updated",
   "dmonitoringmodeld": ("selfdrive/modeld", ["./dmonitoringmodeld"]),
   "modeld": ("selfdrive/modeld", ["./modeld"]),
   "driverview": "selfdrive.controls.lib.driverview",
